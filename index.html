@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>محاكي ببساطة للمعلومات العامة</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@600;700;800&display=swap">
+<style>
+:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}
+/* Layout: RTL one-column app. Home = hero slab + grid of 3D model tiles. Exam = sticky timer bar, one question slab with watermark, number grid. Result = score slab + filterable review. */
+:root{
+  --bg:#EDF1F7; --surface:#FFFFFF; --ink:#13233B; --muted:#56667F; --line:#D5DDEA;
+  --edge1:#D3DCEA; --edge2:#C3CFE2; --edge3:#B3C2DA; --shadow:rgba(19,35,59,.34);
+  --brand:#1B4F9C; --brand-deep:#113A78; --brand-soft:#E3ECF9;
+  --gold:#B8851F; --gold-soft:#FBF2DC;
+  --good:#1E8A57; --good-soft:#E4F4EB; --bad:#C0392B; --bad-soft:#FBEAE7;
+  --wa:#1FAF5A; --wa-deep:#13803F;
+  --font-display:"Noto Kufi Arabic",Tahoma,sans-serif;
+  --font-body:"IBM Plex Sans Arabic",Tahoma,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.75;
+  padding-block:16px 110px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:980px;margin-inline:auto}
+h1,h2,h3,p{margin:0}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+/* ---------- 3D slab ---------- */
+.slab{
+  position:relative;overflow:hidden;background:var(--surface);border:1px solid var(--line);border-radius:20px;
+  box-shadow:0 1px 0 rgba(255,255,255,.95) inset,0 2px 0 var(--edge1),0 4px 0 var(--edge2),0 6px 0 var(--edge3),0 24px 30px -14px var(--shadow);
+}
+.wm{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;pointer-events:none;overflow:hidden;z-index:0}
+.wm span{display:grid;place-items:center;font-family:var(--font-display);font-weight:800;font-size:clamp(22px,4.6vw,34px);color:var(--brand);opacity:.07;transform:rotate(-18deg);white-space:nowrap}
+.in{position:relative;z-index:1}
+
+/* ---------- header ---------- */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-block:6px 4px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{filter:drop-shadow(0 4px 0 #0C2C5C)}
+.bn{font-family:var(--font-display);font-weight:800;font-size:26px;line-height:1.1;color:var(--brand-deep);display:block}
+.bs{font-size:13px;color:var(--muted)}
+.chipwa{display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:#fff;background:var(--wa);border-radius:12px;padding:8px 14px;font-weight:600;font-size:14px;box-shadow:0 4px 0 var(--wa-deep)}
+.chipwa:active{transform:translateY(3px);box-shadow:0 1px 0 var(--wa-deep)}
+
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:14px;padding:12px 22px;font-weight:700;cursor:pointer;background:var(--brand);color:#fff;box-shadow:0 5px 0 var(--brand-deep),0 12px 16px -8px rgba(17,58,120,.55);transition:transform .08s,box-shadow .08s}
+.btn:hover{background:#1E57AC}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--brand-deep)}
+.btn.ghost{background:#fff;color:var(--brand-deep);border:1px solid var(--line);box-shadow:0 5px 0 var(--edge2),0 12px 16px -10px var(--shadow)}
+.btn.ghost:hover{background:var(--brand-soft)}
+.btn.ghost:active{box-shadow:0 1px 0 var(--edge2)}
+.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+.btn.danger{background:var(--bad);box-shadow:0 5px 0 #8E2A20}
+
+/* ---------- home ---------- */
+.hero{padding:clamp(20px,4vw,36px);margin-block:18px 20px;background:linear-gradient(135deg,#fff 0%,#F3F7FE 100%)}
+.eyebrow{display:inline-block;font-weight:700;font-size:13px;color:var(--gold);background:var(--gold-soft);border-radius:999px;padding:2px 12px}
+.hero h1{font-family:var(--font-display);font-weight:800;font-size:clamp(26px,5.4vw,42px);line-height:1.4;margin-block:10px 8px;color:var(--brand-deep);text-wrap:balance}
+.hero p.lead{color:var(--muted);max-width:60ch}
+.facts{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}
+.fact{background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px 16px;box-shadow:0 4px 0 var(--edge2);display:grid;line-height:1.35;min-width:96px}
+.fact b{font-family:var(--font-display);font-size:22px;color:var(--brand);font-variant-numeric:tabular-nums}
+.fact span{font-size:13px;color:var(--muted)}
+.credit{margin-top:18px;font-weight:600;color:var(--brand-deep)}
+.rules{padding:20px clamp(18px,3vw,28px);margin-bottom:24px}
+.rules h2{font-family:var(--font-display);font-size:19px;color:var(--brand-deep);margin-bottom:8px}
+.rules ul{margin:0;padding-inline-start:20px}
+.rules li{margin-block:4px}
+.sech{font-family:var(--font-display);font-size:21px;color:var(--brand-deep);margin-block:6px 14px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;padding-bottom:10px}
+.tile{
+  position:relative;display:grid;gap:4px;text-align:start;cursor:pointer;padding:18px 18px 16px;border-radius:20px;border:1px solid var(--line);background:#fff;min-width:0;
+  transform:perspective(900px) rotateX(4deg) rotateY(-3deg);transform-origin:50% 100%;
+  box-shadow:0 1px 0 #fff inset,0 3px 0 var(--edge1),0 6px 0 var(--edge2),0 9px 0 var(--edge3),0 28px 30px -14px var(--shadow);
+  transition:transform .18s,box-shadow .18s;
+}
+.tile:hover{transform:perspective(900px) rotateX(0) rotateY(0) translateY(-6px)}
+.tile:active{transform:perspective(900px) translateY(2px)}
+.tile .num{width:58px;height:58px;border-radius:15px;display:grid;place-items:center;background:var(--brand);color:#fff;font-family:var(--font-display);font-weight:800;font-size:28px;box-shadow:0 5px 0 var(--brand-deep),0 10px 14px -6px rgba(17,58,120,.5);margin-bottom:10px}
+.tile .tn{font-family:var(--font-display);font-weight:700;font-size:20px;color:var(--ink)}
+.tile .tm{color:var(--muted);font-size:14px}
+.tile .best{font-size:13px;color:var(--gold);font-weight:700;min-height:22px;font-variant-numeric:tabular-nums}
+.tile .go{margin-top:6px;display:inline-flex;align-self:start;background:var(--brand-soft);color:var(--brand-deep);font-weight:700;border-radius:10px;padding:5px 14px;box-shadow:0 3px 0 #C7D7EE}
+
+/* ---------- exam ---------- */
+.xbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;padding:12px 18px 14px;border-radius:0 0 18px 18px;margin-bottom:18px}
+.xrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.xt b{font-family:var(--font-display);font-size:18px;color:var(--brand-deep);display:block;line-height:1.4}
+.xt span{font-size:13px;color:var(--muted)}
+.timer{font-family:var(--font-display);font-weight:800;font-size:28px;font-variant-numeric:tabular-nums;color:var(--brand-deep);background:var(--brand-soft);border-radius:12px;padding:2px 14px;box-shadow:0 3px 0 #C7D7EE;direction:ltr}
+.timer.warn{color:#fff;background:var(--bad);box-shadow:0 3px 0 #8E2A20}
+.tbar{height:8px;border-radius:99px;background:#DCE5F2;margin-top:10px;overflow:hidden}
+.tbar i{display:block;height:100%;width:100%;background:var(--brand);border-radius:99px;transition:width .25s linear}
+.timer.warn ~ .tbar i,.xbar.warn .tbar i{background:var(--bad)}
+.qcard{padding:clamp(18px,3.4vw,32px);min-height:380px}
+.qno{display:inline-block;font-weight:700;font-size:14px;color:var(--brand-deep);background:var(--brand-soft);border-radius:10px;padding:2px 12px;font-variant-numeric:tabular-nums}
+.qt{font-family:var(--font-body);font-weight:600;font-size:clamp(18px,3.3vw,23px);line-height:1.9;margin-block:14px 18px;text-wrap:pretty}
+.opts{display:grid;gap:14px}
+.opt{display:flex;gap:12px;align-items:center;width:100%;text-align:start;padding:13px 14px;border-radius:15px;border:1px solid var(--line);background:#fff;cursor:pointer;min-width:0;
+  box-shadow:0 5px 0 var(--edge2),0 10px 14px -8px var(--shadow);transition:transform .08s,box-shadow .08s,background .15s}
+.opt:hover{background:var(--brand-soft)}
+.opt:active{transform:translateY(4px);box-shadow:0 1px 0 var(--edge2)}
+.opt[aria-pressed="true"]{background:var(--brand);border-color:var(--brand-deep);color:#fff;box-shadow:0 5px 0 var(--brand-deep),0 10px 14px -8px rgba(17,58,120,.55)}
+.opt .let{flex:none;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--brand-soft);color:var(--brand-deep);font-family:var(--font-display);font-weight:700}
+.opt[aria-pressed="true"] .let{background:#fff}
+.opt .ot{min-width:0;overflow-wrap:anywhere}
+.navrow{display:flex;gap:14px;justify-content:space-between;margin-block:24px 22px}
+.navgrid{padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:10px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:11px;height:42px;cursor:pointer;font-weight:700;font-variant-numeric:tabular-nums;box-shadow:0 3px 0 var(--edge2);position:relative;z-index:1}
+.chip:active{transform:translateY(2px);box-shadow:0 1px 0 var(--edge2)}
+.chip.done{background:var(--brand-soft);border-color:#A9C0E6;color:var(--brand-deep)}
+.chip.cur{background:var(--brand);color:#fff;border-color:var(--brand-deep);box-shadow:0 3px 0 var(--brand-deep)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);padding:0 16px 14px;position:relative;z-index:1}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-inline-end:6px;border:1px solid var(--line);background:#fff}
+.legend i.d{background:var(--brand-soft);border-color:#A9C0E6}.legend i.c{background:var(--brand);border-color:var(--brand-deep)}
+.xfoot{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;margin-top:22px}
+.tog{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);cursor:pointer}
+.tog input{width:20px;height:20px;accent-color:var(--brand)}
+
+/* ---------- instant correction ---------- */
+.opt.ok,.opt.ok[aria-pressed="true"]{background:var(--good-soft);border-color:#7DBE98;color:var(--ink);box-shadow:0 5px 0 #6FB08B}
+.opt.no,.opt.no[aria-pressed="true"]{background:var(--bad-soft);border-color:#E3A59C;color:var(--ink);box-shadow:0 5px 0 #D18C82}
+.opt.ok .let{background:var(--good);color:#fff}
+.opt.no .let{background:var(--bad);color:#fff}
+.opt.lock{cursor:default}
+.opt.lock:active{transform:none}
+.opt.lock:not(.ok):not(.no){opacity:.62;box-shadow:0 3px 0 var(--edge2)}
+.opt .mk{flex:none;margin-inline-start:auto;font-size:12px;font-weight:700;border-radius:8px;padding:1px 10px;color:#fff}
+.opt.ok .mk{background:var(--good)}.opt.no .mk{background:var(--bad)}
+.expl{margin-top:20px;border-radius:15px;padding:14px 16px;border:1px solid var(--line);background:var(--brand-soft)}
+.expl.ok{background:var(--good-soft);border-color:#98D1B1}
+.expl.no{background:var(--bad-soft);border-color:#E3A59C}
+.expl b{display:block;font-family:var(--font-display);font-size:16px;margin-bottom:2px}
+.expl.ok b{color:var(--good)}.expl.no b{color:var(--bad)}
+.expl p{margin:0;font-size:15px}
+.chip.ok{background:var(--good-soft);border-color:#7DBE98;color:var(--good)}
+.chip.bad{background:var(--bad-soft);border-color:#E3A59C;color:var(--bad)}
+.chip.cur.ok,.chip.cur.bad{background:var(--brand);color:#fff;border-color:var(--brand-deep)}
+.modeslab{padding:16px 20px;margin-bottom:24px}
+.modeslab label{display:flex;gap:12px;align-items:flex-start;cursor:pointer}
+.modeslab input{width:22px;height:22px;margin-top:5px;accent-color:var(--brand);flex:none}
+.modeslab b{font-family:var(--font-display);color:var(--brand-deep);display:block}
+.modeslab span{color:var(--muted);font-size:14px}
+.rev .exp{margin:14px 0 0;padding:10px 14px;border-radius:12px;background:var(--brand-soft);font-size:15px}
+.rev .exp b{color:var(--brand-deep)}
+/* ---------- modal ---------- */
+.modal{position:fixed;inset:0;z-index:30;background:rgba(19,35,59,.55);display:grid;place-items:center;padding:20px}
+.modal .box{max-width:420px;width:100%;padding:24px}
+.modal h3{font-family:var(--font-display);color:var(--brand-deep);margin-bottom:8px}
+.modal .acts{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+
+/* ---------- result ---------- */
+.score{padding:clamp(20px,4vw,34px);margin-block:16px 22px;text-align:center}
+.score .big{font-family:var(--font-display);font-weight:800;font-size:clamp(56px,14vw,96px);line-height:1.1;color:var(--brand);font-variant-numeric:tabular-nums}
+.score .big small{font-size:.38em;color:var(--muted);font-weight:700}
+.rate{display:inline-block;margin-top:6px;font-family:var(--font-display);font-weight:700;font-size:20px;color:#fff;background:var(--brand);border-radius:12px;padding:4px 20px;box-shadow:0 4px 0 var(--brand-deep)}
+.note{margin-top:12px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;margin-top:22px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;box-shadow:0 4px 0 var(--edge2)}
+.stat b{display:block;font-family:var(--font-display);font-size:24px;font-variant-numeric:tabular-nums}
+.rev .note{margin:12px 0 0;color:var(--muted);font-size:14px}
+.stat span{font-size:13px;color:var(--muted)}
+.stat.g b{color:var(--good)}.stat.r b{color:var(--bad)}.stat.y b{color:var(--gold)}
+.acts2{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:24px}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-block:6px 18px}
+.rev{padding:clamp(16px,3vw,26px);margin-bottom:22px}
+.rq{display:flex;gap:12px;align-items:flex-start;font-weight:600;font-size:17px;line-height:1.85}
+.rn{flex:none;min-width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--brand-soft);color:var(--brand-deep);font-weight:700;font-variant-numeric:tabular-nums}
+.rev.ok .rn{background:var(--good);color:#fff}.rev.bad .rn{background:var(--bad);color:#fff}.rev.skip .rn{background:var(--gold);color:#fff}
+.ros{display:grid;gap:10px;margin-top:14px}
+.ro{display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:12px;background:#fff;padding:9px 12px;min-width:0}
+.ro .rt{min-width:0;overflow-wrap:anywhere}
+.ro.right{background:var(--good-soft);border-color:#98D1B1}
+.ro.wrong{background:var(--bad-soft);border-color:#E3A59C}
+.tag{flex:none;font-size:12px;font-weight:700;border-radius:8px;padding:1px 10px;color:#fff}
+.tag.g{background:var(--good)}.tag.r{background:var(--bad)}
+
+/* ---------- footer + whatsapp ---------- */
+.foot{margin-top:34px;padding:20px;text-align:center;color:var(--muted);font-size:14px}
+.foot b{color:var(--brand-deep)}
+.foot .num{direction:ltr;unicode-bidi:isolate;font-weight:700;color:var(--ink);user-select:all}
+.cp{margin-inline-start:8px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:0 10px;font-size:13px;cursor:pointer;box-shadow:0 3px 0 var(--edge2)}
+.wa{position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:20;display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:#fff;background:var(--wa);font-weight:700;border-radius:999px;padding:10px 18px 10px 14px;box-shadow:0 5px 0 var(--wa-deep),0 14px 22px -8px rgba(19,128,63,.6)}
+.wa:active{transform:translateY(4px);box-shadow:0 1px 0 var(--wa-deep)}
+@media (max-width:520px){.wa span{display:none}.wa{padding:12px}.navrow .btn{flex:1}.qcard{min-height:340px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}.tile{transform:none}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap" dir="rtl" lang="ar">
+
+<header class="top">
+  <div class="brand">
+    <svg class="logo" viewBox="0 0 48 48" width="46" height="46" aria-hidden="true"><rect x="2" y="2" width="44" height="44" rx="12" fill="#1B4F9C"/><text x="24" y="31" text-anchor="middle" font-family="Noto Kufi Arabic, Tahoma, sans-serif" font-size="27" font-weight="800" fill="#FFFFFF">ب</text><rect x="14" y="38" width="20" height="3" rx="1.5" fill="#E9B949"/></svg>
+    <div><span class="bn">ببساطة</span><span class="bs">صفحة ببساطة التعليمية</span></div>
+  </div>
+  <a class="chipwa" href="https://wa.me/201505191893" target="_blank" rel="noopener">تواصل عبر واتساب</a>
+</header>
+
+<!-- ================= HOME ================= -->
+<section id="home">
+  <div class="slab hero">
+    <div class="wm" aria-hidden="true"><span>ببساطة</span><span>ببساطة</span><span>ببساطة</span><span>ببساطة</span><span>ببساطة</span><span>ببساطة</span></div>
+    <div class="in">
+      <span class="eyebrow">اختبار تجريبي</span>
+      <h1>محاكي اختبار المعلم المساعد</h1>
+      <p class="lead">محور المعلومات العامة، على نمط اختبار الجهاز المركزي للتنظيم والإدارة. مناسب لجميع التخصصات.</p>
+      <div class="facts">
+        <div class="fact"><b>6</b><span>نماذج</span></div>
+        <div class="fact"><b>30</b><span>سؤالًا في النموذج</span></div>
+        <div class="fact"><b>5</b><span>دقائق للنموذج</span></div>
+        <div class="fact"><b>فوري</b><span>تصحيح تلقائي وشرح</span></div>
+      </div>
+      <p class="credit">مقدم من صفحة ببساطة · إعداد مستر محمد سيد ومس نورهان إبراهيم</p>
+    </div>
+  </div>
+
+  <div class="slab rules"><div class="in">
+    <h2>قبل أن تبدأ</h2>
+    <ul>
+      <li>يبدأ عدّاد الخمس دقائق فور اختيار النموذج.</li>
+      <li>اختر إجابة واحدة لكل سؤال، ويمكنك الرجوع وتغييرها قبل انتهاء الوقت.</li>
+      <li>ينتهي الاختبار عند انتهاء الوقت أو بزر «إنهاء الاختبار»، ثم تظهر نتيجتك مع الإجابات الصحيحة وشرح كل سؤال.</li>
+    </ul>
+  </div></div>
+
+  <div class="slab modeslab"><div class="in">
+    <label for="instantToggle"><input type="checkbox" id="instantToggle" checked>
+      <div><b>وضع التدريب: تصحيح فوري مع الشرح</b><span>تظهر الإجابة الصحيحة وشرحها بعد كل سؤال مباشرة، وتُقفل الإجابة. أوقفه لتجربة الاختبار كما في القاعة.</span></div></label>
+  </div></div>
+
+  <h2 class="sech">اختر النموذج</h2>
+  <div class="tiles" id="tiles"></div>
+</section>
+
+<!-- ================= EXAM ================= -->
+<section id="exam" hidden>
+  <div class="slab xbar" id="xbar">
+    <div class="in">
+      <div class="xrow">
+        <div class="xt"><b id="examTitle"></b><span>المعلومات العامة</span></div>
+        <div class="timer" id="timerBox"><span id="timer">05:00</span></div>
+      </div>
+      <div class="tbar"><i id="tfill"></i></div>
+    </div>
+  </div>
+
+  <div class="slab qcard" id="qcard"></div>
+
+  <div class="navrow">
+    <button class="btn ghost" id="prev" type="button">السؤال السابق</button>
+    <button class="btn" id="next" type="button">السؤال التالي</button>
+  </div>
+
+  <div class="slab">
+    <div class="wm" aria-hidden="true"><span>ببساطة</span><span>ببساطة</span><span>ببساطة</span></div>
+    <div class="navgrid" id="navgrid"></div>
+    <div class="legend"><span><i class="d"></i>تمت الإجابة</span><span><i class="c"></i>السؤال الحالي</span><span><i></i>لم يُجب</span></div>
+  </div>
+
+  <div class="xfoot">
+    <label class="tog" id="autoLbl"><input type="checkbox" id="autoToggle" checked> الانتقال التلقائي بعد اختيار الإجابة</label>
+    <button class="btn danger" id="finishBtn" type="button">إنهاء الاختبار</button>
+  </div>
+</section>
+
+<!-- ================= RESULT ================= -->
+<section id="result" hidden>
+  <div class="slab score">
+    <div class="wm" aria-hidden="true"><span>ببساطة</span><span>ببساطة</span><span>ببساطة</span><span>ببساطة</span><span>ببساطة</span><span>ببساطة</span></div>
+    <div class="in">
+      <div id="resTitle" class="bs"></div>
+      <div class="big"><span id="resScore">0</span><small> / <span id="resTotal">30</span></small></div>
+      <div class="rate" id="resRate"></div>
+      <p class="note" id="resNote"></p>
+      <div class="stats" id="resStats"></div>
+      <div class="acts2">
+        <button class="btn" id="retry" type="button">إعادة النموذج</button>
+        <button class="btn ghost" id="toHome" type="button">كل النماذج</button>
+      </div>
+    </div>
+  </div>
+  <h2 class="sech">مراجعة الإجابات</h2>
+  <div class="filters" id="filters">
+    <button class="btn ghost" data-f="all" type="button">الكل</button>
+    <button class="btn ghost" data-f="bad" type="button">الخاطئة</button>
+    <button class="btn ghost" data-f="skip" type="button">بدون إجابة</button>
+  </div>
+  <div id="review"></div>
+</section>
+
+<footer class="slab foot"><div class="in">
+  <p><b>مقدم من صفحة ببساطة</b> · إعداد مستر محمد سيد ومس نورهان إبراهيم</p>
+  <p>للتواصل عبر واتساب: <span class="num">01505191893</span><button class="cp" id="cpBtn" type="button">نسخ الرقم</button></p>
+  <p>الاختبار تدريبي للمراجعة ولا يمثل الاختبار الرسمي. جزء من الأسئلة مأخوذ من ملفات مراجعة «أحدث أسئلة» لإيمان السيد (هنتعلم أون لاين).</p>
+</div></footer>
+
+<a class="wa" href="https://wa.me/201505191893" target="_blank" rel="noopener" aria-label="تواصل عبر واتساب">
+  <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 2.5a9.3 9.3 0 0 0-8 14l-1.3 4.8 4.9-1.3A9.3 9.3 0 1 0 12 2.5z" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.2 7.8c.2 3 3 5.9 6 6.1l1.3-1.3-2-1.2-.9.7a4.4 4.4 0 0 1-2.2-2.2l.7-.9-1.2-2z" fill="#fff"/></svg>
+  <span>واتساب</span>
+</a>
+
+<div class="modal" id="modal" hidden>
+  <div class="slab box" role="dialog" aria-modal="true" aria-labelledby="mTitle"><div class="in">
+    <h3 id="mTitle">إنهاء الاختبار؟</h3>
+    <p id="mMsg"></p>
+    <div class="acts">
+      <button class="btn ghost" id="mBack" type="button">متابعة الاختبار</button>
+      <button class="btn danger" id="mOk" type="button">إنهاء وعرض النتيجة</button>
+    </div>
+  </div></div>
+</div>
+
+</div>
+
+<script>
+/*DATA*/
+/* كل سؤال: [النص، [الصحيحة، خطأ، ...]، 1 إن كان من الملف، ملاحظة تظهر في المراجعة] */
+var MODELS=[
+[
+["تم إعلان عام 2022 عامًا:",["للمجتمع المدني","للمرأة المصرية","للشباب","للتعليم"],1],
+["الزعيم الذي خلف سعد زغلول في رئاسة حزب الوفد:",["مصطفى النحاس","عدلي يكن","مكرم عبيد","أحمد لطفي السيد"],1],
+["رئيس الوزراء الذي ألغى معاهدة 1936 عام 1951:",["مصطفى النحاس","علي ماهر","إسماعيل صدقي","محمد محمود"],1],
+["أُطلق صندوق تحيا مصر عام 2018 (صح أم خطأ)؟",["خطأ","صح"],1,"أُطلق صندوق تحيا مصر عام 2014."],
+["يتم التعداد السكاني في مصر كل:",["10 سنوات","5 سنوات","20 سنة","سنة واحدة"],1],
+["عاصمة المملكة العربية السعودية:",["الرياض","جدة","مكة المكرمة","الدمام"],1],
+["عاصمة لبنان:",["بيروت","طرابلس","صيدا","زحلة"],1],
+["4000 ملليلتر تساوي 40 لترًا (صح أم خطأ)؟",["خطأ","صح"],1,"4000 ملليلتر تساوي 4 لترات."],
+["تقع مدينة نيوم الخضراء في:",["المملكة العربية السعودية","الإمارات العربية المتحدة","الأردن","سلطنة عمان"],1],
+["يهدف برنامج «مستورة» إلى:",["تمكين المرأة اقتصاديًا بتمويل مشروعات متناهية الصغر","دعم الطلاب في التعليم الجامعي","بناء وحدات سكنية للشباب","علاج مرضى الأورام"],1],
+["تم إطلاق برنامج «مستورة» في عام:",["2017","2014","2020","2011"],1],
+["الجهة المنفذة لبرنامج «مستورة»:",["بنك ناصر الاجتماعي بتمويل من صندوق تحيا مصر","البنك المركزي المصري","بنك مصر","وزارة التموين"],1],
+["أبعاد التنمية المستدامة:",["البعد الاقتصادي والاجتماعي والبيئي","البعد السياسي والعسكري والديني","البعد الجغرافي والتاريخي والثقافي","البعد المالي والتعليمي والصحي"],1],
+["المصدر الرئيسي للمياه العذبة في مصر:",["نهر النيل","الأمطار","المياه الجوفية","تحلية مياه البحر"]],
+["أكبر محافظات مصر مساحة:",["الوادي الجديد","مطروح","البحر الأحمر","جنوب سيناء"]],
+["تقع مدينة أبو سمبل في محافظة:",["أسوان","الأقصر","قنا","الوادي الجديد"]],
+["تقع مدينة العلمين في محافظة:",["مطروح","الإسكندرية","البحيرة","الوادي الجديد"]],
+["تربط قناة السويس بين البحرين:",["المتوسط والأحمر","الأحمر والعربي","المتوسط والأسود","الأحمر والأسود"]],
+["مقر جامعة الدول العربية:",["القاهرة","الرياض","عمّان","تونس"]],
+["موحّد القطرين في مصر القديمة:",["الملك مينا (نارمر)","رمسيس الثاني","تحتمس الثالث","توت عنخ آمون"]],
+["باني الهرم الأكبر بالجيزة:",["خوفو","خفرع","منقرع","زوسر"]],
+["العالم الذي فك رموز حجر رشيد:",["شامبليون","نابليون","هوارد كارتر","ماريت"]],
+["أول رئيس لجمهورية مصر:",["محمد نجيب","جمال عبد الناصر","أنور السادات","حسني مبارك"]],
+["قامت ثورة 23 يوليو عام:",["1952","1919","1967","1973"]],
+["أقرب الكواكب إلى الشمس:",["عطارد","الزهرة","المريخ","الأرض"]],
+["الرمز الكيميائي للماء:",["H2O","CO2","O2","NaCl"]],
+["عاصمة تركيا:",["أنقرة","إسطنبول","إزمير","بورصة"]],
+["أكبر قارات العالم مساحة:",["آسيا","أفريقيا","أمريكا الشمالية","أوروبا"]],
+["أكبر عضو في جسم الإنسان:",["الجلد","الكبد","القلب","الرئتان"]],
+["الغاز الذي تمتصه النباتات في عملية البناء الضوئي:",["ثاني أكسيد الكربون","الأكسجين","النيتروجين","الهيدروجين"]]
+],
+[
+["تهدف مبادرة «اتحضر للأخضر» إلى:",["نشر الوعي البيئي وتغيير السلوكيات للحفاظ على البيئة","تطوير الريف المصري","القضاء على فيروس سي","تمويل المشروعات الصغيرة"],1],
+["تقع العدوة في محافظة:",["المنيا","أسيوط","سوهاج","الفيوم"],1],
+["أرسل محمد علي بعثات الأزهر إلى:",["فرنسا","بريطانيا","إيطاليا","ألمانيا"],1],
+["أول من أنشأ أسطولًا للسفن في الإسكندرية في العصر الحديث:",["محمد علي","الخديوي إسماعيل","الملك فاروق","جمال عبد الناصر"],1],
+["تقع مدينة سمالوط في محافظة:",["المنيا","بني سويف","أسيوط","الفيوم"],1],
+["من التكتلات الاقتصادية في أمريكا الجنوبية:",["الميركوسور","الكوميسا","الآسيان","النافتا"],1],
+["من أبرز البلاد المعروفة بصناعة الحديد والصلب:",["الصين","سويسرا","هولندا","اليونان"],1],
+["تم استهداف مدرسة بحر البقر عام:",["1970","1967","1973","1956"],1],
+["الصفر هو العدد الوحيد الذي ليس له معكوس ضربي (صح أم خطأ)؟",["صح","خطأ"],1,"لأن القسمة على صفر غير معرّفة."],
+["من الكائنات الحية التي ليس لها دعامة صلبة:",["دودة الأرض","الأرنب","السلحفاة","الضفدع"],1],
+["الضابط الفرنسي الذي استعان به محمد علي لتدريب الجنود في المدرسة الحربية بأسوان:",["الكولونيل سيف (سليمان باشا الفرنساوي)","نابليون بونابرت","الجنرال كليبر","فرديناند ديليسبس"],1],
+["يُنتج الهيدروجين الأخضر عن طريق:",["التحليل الكهربائي للماء باستخدام الطاقة المتجددة","حرق الفحم","تكرير البترول","تحليل الغاز الطبيعي"],1],
+["تهتم الاستراتيجية الوطنية لتغير المناخ 2050 في مصر بشكل أساسي بـ:",["مواجهة تحديات وآثار تغير المناخ وتحقيق نمو اقتصادي مستدام منخفض الانبعاثات","زيادة استهلاك الوقود الأحفوري","تقليل المساحات الخضراء","وقف مشروعات الطاقة الجديدة"],1],
+["تقع مدينة شرم الشيخ في محافظة:",["جنوب سيناء","البحر الأحمر","شمال سيناء","السويس"]],
+["تقع واحة سيوة في محافظة:",["مطروح","الوادي الجديد","الجيزة","الفيوم"]],
+["أعلى قمة جبلية في مصر:",["جبل كاترين","جبل موسى","جبل عويناط","جبل الجلالة"]],
+["يقع السد العالي في محافظة:",["أسوان","الأقصر","قنا","الوادي الجديد"]],
+["عاصمة محافظة الوادي الجديد:",["الخارجة","الداخلة","الفرافرة","سيوة"]],
+["تقع مدينة الغردقة على ساحل البحر:",["الأحمر","المتوسط","الأبيض","الأسود"]],
+["مؤسس الأسرة العلوية في مصر:",["محمد علي باشا","إبراهيم باشا","الخديوي إسماعيل","الملك فؤاد"]],
+["افتُتحت قناة السويس للملاحة عام 1869 في عهد:",["الخديوي إسماعيل","محمد علي","الخديوي عباس","الملك فؤاد"]],
+["مؤسس بنك مصر:",["طلعت حرب","سعد زغلول","مصطفى كامل","محمد فريد"]],
+["لُقّب بـ «أمير الشعراء»:",["أحمد شوقي","حافظ إبراهيم","أحمد رامي","صلاح عبد الصبور"]],
+["الحاصل على جائزة نوبل في الأدب عام 1988:",["نجيب محفوظ","طه حسين","توفيق الحكيم","يوسف إدريس"]],
+["عاصمة الأردن:",["عمّان","بغداد","دمشق","بيروت"]],
+["عاصمة المغرب:",["الرباط","الدار البيضاء","مراكش","فاس"]],
+["عاصمة السودان:",["الخرطوم","أم درمان","بورتسودان","جوبا"]],
+["أكبر كواكب المجموعة الشمسية:",["المشتري","زحل","الأرض","نبتون"]],
+["الرمز الكيميائي للذهب:",["Au","Ag","Fe","Cu"]],
+["يُلقب فيتامين د بفيتامين:",["الشمس","الدم","العظام فقط","النمو"]]
+],
+[
+["عدد محاور الاستراتيجية الوطنية لحقوق الإنسان في مصر:",["4 محاور","3 محاور","5 محاور","6 محاور"],1],
+["أُعلن عام ........ «عامًا للمرأة المصرية».",["2017","2015","2019","2022"],1],
+["تقع مدينة الجلالة في محافظة الإسماعيلية (صح أم خطأ)؟",["خطأ","صح"],1,"تتبع مدينة الجلالة محافظة السويس."],
+["تقع مدينة أبو صوير في محافظة:",["الإسماعيلية","السويس","الشرقية","بورسعيد"],1],
+["يقع كوبري جرجا العلوي في محافظة:",["سوهاج","قنا","أسيوط","المنيا"],1],
+["كوبري «تحيا مصر» المسجَّل في موسوعة جينيس كأعرض جسر مُعلَّق بالكابلات في العالم يقع في:",["القاهرة (محور روض الفرج)","الإسكندرية","الجيزة","بورسعيد"],1],
+["تهدف مبادرة «حياة كريمة» إلى:",["تطوير الريف المصري وتحسين حياة سكانه","دعم السياحة الساحلية","تطوير الموانئ","تحديث المصانع الكبرى"],1],
+["تهدف مبادرة «100 مليون صحة» إلى:",["القضاء على فيروس سي والكشف عن الأمراض غير السارية","بناء المدارس","تطوير الطرق","دعم الصادرات"],1],
+["أُقيم حفل الافتتاح الرسمي للمتحف المصري الكبير في:",["1 نوفمبر 2025","1 يناير 2023","15 مايو 2024","30 يونيو 2025"],1,"وفُتح المتحف للجمهور كاملًا في 4 نوفمبر 2025."],
+["شهد الرئيسان المصري والروسي في يناير 2024 بدء صب الخرسانة للوحدة الرابعة بمحطة الضبعة. نستنتج من ذلك:",["الشراكة الاستراتيجية في الاستخدام السلمي للطاقة النووية","التعاون في صناعة السيارات","الشراكة في استكشاف الفضاء","التعاون في التبادل الثقافي"],1],
+["تتبع «اللجنة الدائمة لشئون اللاجئين» المنشأة بقانون لجوء الأجانب رقم 164 لسنة 2024:",["رئيس مجلس الوزراء","وزير الداخلية","وزير الخارجية","رئيس مجلس النواب"],1],
+["من أهم الدروس المستفادة من نصر أكتوبر 1973:",["التخطيط الجيد والاستعداد الدائم للقوات المسلحة","الاعتماد على الدول الأجنبية","الاستغناء عن التسليح","إهمال الجبهة الداخلية"],1],
+["في الاتحاد الجمركي (أحد صور التكتلات الاقتصادية) تكون التعريفة الجمركية:",["ملغاة بين الأعضاء وموحدة تجاه الدول الخارجية","مختلفة بين الأعضاء","مفروضة بين الأعضاء فقط","ملغاة تجاه الجميع"],1],
+["الارتفاع المستمر في المستوى العام للأسعار يسمى:",["التضخم","الانكماش","الركود","البطالة"],1],
+["تقع مدينة العاصمة الإدارية الجديدة شرق:",["القاهرة","الجيزة","السويس","الإسكندرية"]],
+["يوجد البرج الأيقوني (أطول برج في أفريقيا) في:",["العاصمة الإدارية الجديدة","الإسكندرية","الجيزة","الإسماعيلية"]],
+["يقع معبد الكرنك في:",["الأقصر","أسوان","المنيا","قنا"]],
+["تقع محطة بنبان للطاقة الشمسية في محافظة:",["أسوان","مطروح","البحر الأحمر","الوادي الجديد"]],
+["عدد محافظات جمهورية مصر العربية:",["27","25","29","30"]],
+["بدأ العبور في حرب أكتوبر يوم:",["6 أكتوبر 1973","5 يونيو 1967","23 يوليو 1952","26 يوليو 1956"]],
+["الحاصل على جائزة نوبل في الكيمياء عام 1999:",["أحمد زويل","مجدي يعقوب","فاروق الباز","محمد البرادعي"]],
+["أُنشئت الجامعة المصرية (جامعة القاهرة حاليًا) عام:",["1908","1925","1952","1919"]],
+["تقع مدينة بورسعيد عند المدخل ....... لقناة السويس:",["الشمالي","الجنوبي","الشرقي","الغربي"]],
+["عاصمة ليبيا:",["طرابلس","بنغازي","سرت","مصراتة"]],
+["عاصمة العراق:",["بغداد","البصرة","الموصل","أربيل"]],
+["عاصمة تونس:",["تونس","صفاقس","سوسة","القيروان"]],
+["أكبر دولة عربية من حيث المساحة:",["الجزائر","السودان","السعودية","ليبيا"]],
+["أكبر محيطات العالم:",["الهادئ","الأطلسي","الهندي","المتجمد الشمالي"]],
+["أكثر الغازات وفرة في الغلاف الجوي:",["النيتروجين","الأكسجين","ثاني أكسيد الكربون","الهيدروجين"]],
+["درجة غليان الماء النقي عند مستوى سطح البحر:",["100 درجة مئوية","90 درجة مئوية","120 درجة مئوية","80 درجة مئوية"]]
+],
+[
+["جدول رسمي يحدد الرسوم والضرائب المطبقة على البضائع المستوردة والمصدرة:",["التعريفة الجمركية","الميزانية العامة","ميزان المدفوعات","سعر الصرف"],1],
+["ضريبة تفرضها الدولة على السلع والخدمات المستوردة (وأحيانًا الصادرات) عند عبورها الحدود الوطنية:",["التعريفة الجمركية","ضريبة الدخل","ضريبة العقارات","ضريبة الدمغة"],1],
+["من الكائنات التي تدخل في بيات صيفي هربًا من الحر والجفاف:",["الحلزون","الدب","الأرنب","الثعلب"],1],
+["من الحيوانات التي تدخل في بيات شتوي:",["الدب","الغزال","الأسد","الحصان"],1],
+["أمّم جمال عبد الناصر قناة السويس عام:",["1956","1952","1967","1973"],1],
+["من أبرز المشروعات القومية في عهد جمال عبد الناصر:",["السد العالي","قناة السويس الجديدة","العاصمة الإدارية","مشروع المليون ونصف فدان"],1],
+["تقع منطقة تونة الجبل في محافظة:",["المنيا","الأقصر","أسوان","الفيوم"],1],
+["تهدف الاستراتيجية الوطنية لتمكين المرأة المصرية 2030 إلى:",["تمكين المرأة سياسيًا واقتصاديًا واجتماعيًا وحمايتها","حصر عمل المرأة في المنزل","منع المرأة من الوظائف القيادية","تقليل تعليم الإناث"],1],
+["عدد قاعات العرض الرئيسية في المتحف المصري الكبير:",["12 قاعة","6 قاعات","20 قاعة","30 قاعة"],1],
+["يضم المتحف المصري الكبير آثار العصور المصرية كلها ما عدا:",["العصر الإسلامي","العصر الفرعوني","العصر اليوناني","العصر الروماني"],1],
+["متى أُطلقت الاستراتيجية الوطنية للملكية الفكرية؟",["2022","2016","2014","2020"],1],
+["أكبر تكتل اقتصادي إقليمي في القارة الأفريقية:",["الكوميسا (السوق المشتركة لشرق وجنوب أفريقيا)","الاتحاد الأوروبي","الآسيان","الميركوسور"],1],
+["انضمت مصر إلى تجمع الكوميسا عام:",["1998","1990","2005","2011"],1],
+["تولى المستشار عدلي منصور رئاسة مصر 2013 بصفته رئيسًا للمحكمة الدستورية العليا (صح أم خطأ)؟",["صح","خطأ"],1,"تولى الرئاسة المؤقتة في يوليو 2013."],
+["تشتهر مدينة المحلة الكبرى بصناعة:",["الغزل والنسيج","الأثاث","السيراميك","الزجاج"]],
+["تشتهر مدينة دمياط بصناعة:",["الأثاث","الحديد والصلب","الأسمنت","السكر"]],
+["تقع بحيرة قارون في محافظة:",["الفيوم","الجيزة","بني سويف","المنيا"]],
+["تقع محطة الضبعة النووية في محافظة:",["مطروح","الإسكندرية","شمال سيناء","البحر الأحمر"]],
+["القائد الذي بنى مدينة القاهرة عام 969م:",["جوهر الصقلي","عمرو بن العاص","صلاح الدين الأيوبي","أحمد بن طولون"]],
+["أُنشئ الجامع الأزهر في العصر:",["الفاطمي","الأموي","العباسي","الأيوبي"]],
+["يحتفل المصريون بعيد تحرير سيناء في:",["25 أبريل","6 أكتوبر","23 يوليو","18 يونيو"]],
+["يحتفل المصريون بعيد الشرطة في:",["25 يناير","23 يوليو","6 أكتوبر","25 أبريل"]],
+["الحاصل على جائزة نوبل للسلام عام 2005 مع الوكالة الدولية للطاقة الذرية:",["محمد البرادعي","أنور السادات","أحمد زويل","محمد مرسي"]],
+["عاصمة الإمارات العربية المتحدة:",["أبو ظبي","دبي","الشارقة","العين"]],
+["عاصمة قطر:",["الدوحة","الريان","الوكرة","المنامة"]],
+["تأسست جامعة الدول العربية عام:",["1945","1952","1948","1967"]],
+["أكبر صحراء حارة في العالم:",["الصحراء الكبرى","صحراء كالاهاري","صحراء النقب","صحراء جوبي"]],
+["أعلى قمة جبلية في العالم:",["جبل إيفرست","جبل كليمنجارو","جبل ألب","جبل كاترين"]],
+["وحدة قياس القوة:",["النيوتن","الجول","الواط","الأمبير"]],
+["أسرع حيوان بري:",["الفهد","الأسد","الحصان","النمر"]]
+],
+[
+["«رؤية مصر 2030» هي أجندة التنمية المستدامة في مصر. أُطلقت عام:",["2016","2014","2018","2020"],1],
+["من المشروعات المتعلقة بالملك سلمان في مصر:",["جامعة الملك سلمان الدولية بجنوب سيناء","جامعة القاهرة","المتحف المصري الكبير","مدينة العلمين الجديدة"],1],
+["تقع البرازيل في قارة:",["أمريكا الجنوبية","أفريقيا","آسيا","أوروبا"],1],
+["الحضارة الهلينستية هي مزيج بين الثقافة المصرية والثقافة:",["اليونانية","الفارسية","الرومانية","الهندية"],1],
+["من التحديات التي تواجه دول قارة أفريقيا في التنمية سيادة دول أوروبا (صح أم خطأ)؟",["خطأ","صح"],1],
+["الهرمون الأنثوي الرئيسي هو:",["الإستروجين","التستوستيرون","الإنسولين","الأدرينالين"],1],
+["عُقد المؤتمر الوطني الأول للشباب في مصر عام 2018 (صح أم خطأ)؟",["خطأ","صح"],1,"عُقد المؤتمر الوطني الأول للشباب عام 2016."],
+["يُحتفل باليوم العالمي لمكافحة الفساد في:",["9 ديسمبر","10 ديسمبر","1 مايو","8 مارس"],1],
+["يتكون الهيكل العظمي للإنسان البالغ من:",["206 عظمة","300 عظمة","180 عظمة","250 عظمة"],1],
+["أشهر وأكبر حريق في تاريخ مصر الحديث هو حريق القاهرة الذي اندلع في:",["1952","1919","1967","1973"],1],
+["أين تقع قلعة صلاح الدين؟",["القاهرة، فوق جبل المقطم","الإسكندرية","الجيزة","السويس"],1],
+["أين يقع دير سانت كاترين؟",["جنوب سيناء","شمال سيناء","البحر الأحمر","مطروح"],1],
+["ما اسم الرابطة السرية في ثورة 1919؟",["جمعية اليد السوداء","الضباط الأحرار","جماعة الوفد","الحزب الوطني"],1],
+["تقع جبال الأبلاش في:",["شرق أمريكا الشمالية","غرب أمريكا الشمالية","شمال أفريقيا","جنوب آسيا"],1],
+["عاصمة محافظة البحر الأحمر:",["الغردقة","سفاجا","القصير","مرسى علم"]],
+["العريش هي عاصمة محافظة:",["شمال سيناء","جنوب سيناء","الشرقية","السويس"]],
+["ألوان علم مصر:",["الأحمر والأبيض والأسود","الأحمر والأخضر","الأزرق والأبيض","الأخضر والأبيض"]],
+["يتكون الجنيه المصري من 100:",["قرش","مليم","فلس","سنت"]],
+["يحتفل العالم باليوم العالمي للمرأة في:",["8 مارس","1 مايو","21 مارس","5 يونيو"]],
+["اليوم العالمي للمعلم:",["5 أكتوبر","18 ديسمبر","8 سبتمبر","22 مارس"]],
+["اليوم العالمي للغة العربية:",["18 ديسمبر","5 أكتوبر","21 فبراير","1 مايو"]],
+["اليوم العالمي للبيئة:",["5 يونيو","22 مارس","8 مارس","21 سبتمبر"]],
+["مقر الأمم المتحدة:",["نيويورك","جنيف","لندن","باريس"]],
+["مقر منظمة اليونسكو:",["باريس","نيويورك","جنيف","روما"]],
+["عاصمة اليابان:",["طوكيو","أوساكا","كيوتو","سيول"]],
+["عاصمة أستراليا:",["كانبرا","سيدني","ملبورن","بيرث"]],
+["عاصمة كندا:",["أوتاوا","تورنتو","فانكوفر","مونتريال"]],
+["عدد قارات العالم:",["7","5","6","8"]],
+["عدد ألوان الطيف:",["7","5","6","8"]],
+["العضو المسؤول عن ضخ الدم في جسم الإنسان:",["القلب","الكبد","الكلى","المعدة"]]
+],
+[
+["تقع مصانع الرمال السوداء في مدينة:",["البرلس بكفر الشيخ","رشيد","دمياط","العريش"],1],
+["جرى افتتاح قناة السويس الجديدة رسميًا في:",["2015","2013","2018","2011"],1],
+["أيهما أفضل في ترشيد المياه: الري بالتنقيط أم الري بالغمر؟",["الري بالتنقيط","الري بالغمر","كلاهما بالقدر نفسه","لا فرق إطلاقًا"],1],
+["الذي لُقّب بـ «أبو السياسة»:",["أرسطو","أفلاطون","سقراط","ابن خلدون"],1],
+["«أبو السياسة الحديثة»:",["نيكولو ماكيافيلي","جون لوك","مونتسكيو","توماس هوبز"],1],
+["«أبو الدستور المصري»:",["محمد شريف باشا","سعد زغلول","أحمد عرابي","مصطفى كامل"],1],
+["تقع مدينة دشنا بمحافظة:",["قنا","سوهاج","أسيوط","الأقصر"],1],
+["أنشأت مصر المجلس الوطني للهيدروجين الأخضر عام:",["2022","2018","2024","2015"],1],
+["رؤية مصر للتنمية المستدامة 2026 (صح أم خطأ)؟",["خطأ","صح"],1,"الصحيح: رؤية مصر 2030."],
+["أعلنت مصر رسميًا «الاستراتيجية الوطنية للهيدروجين» عام:",["2024","2018","2020","2012"],1],
+["مساحة المتحف المصري الكبير تقارب:",["495 ألف متر مربع","49 ألف متر مربع","95 ألف متر مربع","1500 ألف متر مربع"],1],
+["تم إطلاق مبادرة الهيدروجين الأخضر عام:",["2022","2016","2019","2025"],1],
+["أين تقع أول مطبعة في مصر؟",["بولاق (القاهرة)","الإسكندرية","دمياط","طنطا"],1],
+["تقع الأهرامات الثلاثة الشهيرة في محافظة:",["الجيزة","القاهرة","الأقصر","الفيوم"]],
+["يقع وادي الملوك في:",["الأقصر","أسوان","المنيا","قنا"]],
+["يقع معبد فيلة في:",["أسوان","الأقصر","قنا","الفيوم"]],
+["من عجائب الدنيا السبع القديمة الباقية حتى اليوم:",["الهرم الأكبر بالجيزة","منارة الإسكندرية","حدائق بابل المعلقة","تمثال زيوس"]],
+["كانت منارة الإسكندرية (فاروس) من عجائب الدنيا السبع القديمة (صح أم خطأ)؟",["صح","خطأ"]],
+["تُلقَّب الإسكندرية بـ:",["عروس البحر المتوسط","مدينة الألف مئذنة","عاصمة الصعيد","مدينة الشمس"]],
+["تُلقَّب القاهرة بـ:",["مدينة الألف مئذنة","عروس البحر المتوسط","عاصمة الصعيد","ثغر مصر الباسم"]],
+["من محاصيل الحبوب الشتوية في مصر:",["القمح","القطن","الأرز","قصب السكر"]],
+["يُلقَّب الجمل بـ:",["سفينة الصحراء","ملك الغابة","أمير البحار","طائر الصحراء"]],
+["عاصمة البرازيل:",["برازيليا","ريو دي جانيرو","ساو باولو","بوينس آيرس"]],
+["يجري نهرا دجلة والفرات في:",["العراق","مصر","السودان","الأردن"]],
+["أكبر حيوان على وجه الأرض:",["الحوت الأزرق","الفيل الأفريقي","الزرافة","القرش الأبيض"]],
+["اليوم العالمي للمياه:",["22 مارس","5 يونيو","8 مارس","21 سبتمبر"]],
+["وحدة قياس شدة التيار الكهربائي:",["الأمبير","الفولت","الواط","الأوم"]],
+["أصلب مادة طبيعية:",["الألماس","الحديد","الذهب","الكوارتز"]],
+["الكوكب المعروف بالكوكب الأحمر:",["المريخ","الزهرة","عطارد","زحل"]],
+["عدد أيام السنة الكبيسة:",["366","365","364","367"]]
+]
+];
+var EXPL=[["قرّرت الدولة إعلان عام 2022 عامًا للمجتمع المدني في مصر.", "تولى مصطفى النحاس رئاسة حزب الوفد بعد وفاة سعد زغلول عام 1927.", "ألغى مصطفى النحاس معاهدة 1936 في أكتوبر 1951 وهو رئيس للوزراء.", "أُطلق صندوق «تحيا مصر» عام 2014 لدعم التنمية والمشروعات القومية.", "يُجرى التعداد السكاني في مصر كل 10 سنوات.", "الرياض هي عاصمة المملكة العربية السعودية ومقر الحكومة.", "بيروت هي عاصمة لبنان وأكبر مدنه.", "اللتر الواحد يساوي 1000 ملليلتر، فتكون 4000 ملليلتر = 4 لترات.", "تقع مدينة نيوم شمال غرب السعودية على ساحل البحر الأحمر.", "«مستورة» برنامج لتمكين المرأة اقتصاديًا عن طريق تمويل المشروعات متناهية الصغر.", "أُطلق برنامج «مستورة» عام 2017.", "ينفذ البرنامج بنك ناصر الاجتماعي بتمويل من صندوق «تحيا مصر».", "للتنمية المستدامة ثلاثة أبعاد: اقتصادي واجتماعي وبيئي.", "يعتمد المصريون على نهر النيل في الشرب والزراعة والصناعة.", "تبلغ مساحة الوادي الجديد نحو 376 ألف كم²، وهي أكبر محافظات مصر.", "تتبع أبو سمبل محافظة أسوان، وبها معبدا رمسيس الثاني ونفرتاري.", "العلمين مدينة ساحلية على البحر المتوسط تتبع محافظة مطروح.", "تصل قناة السويس البحر المتوسط بالبحر الأحمر، وتختصر الطريق حول أفريقيا.", "مقر جامعة الدول العربية في القاهرة منذ تأسيسها عام 1945.", "وحّد الملك مينا (نارمر) مصر العليا والسفلى نحو 3100 ق.م.", "بنى الملك خوفو الهرم الأكبر في الجيزة (الأسرة الرابعة).", "فك شامبليون رموز الهيروغليفية عام 1822 بالاعتماد على حجر رشيد.", "محمد نجيب أول رئيس لمصر بعد إعلان الجمهورية عام 1953.", "قامت ثورة 23 يوليو عام 1952 بقيادة الضباط الأحرار.", "عطارد أقرب كواكب المجموعة الشمسية إلى الشمس.", "يتكون جزيء الماء من ذرتي هيدروجين وذرة أكسجين، ورمزه H2O.", "أنقرة هي عاصمة تركيا، أما إسطنبول فهي أكبر مدنها.", "آسيا أكبر القارات مساحة وسكانًا.", "الجلد أكبر أعضاء جسم الإنسان.", "تمتص النباتات ثاني أكسيد الكربون وتطلق الأكسجين أثناء البناء الضوئي."], ["تهدف مبادرة «اتحضر للأخضر» إلى نشر الوعي البيئي وتغيير السلوكيات للحفاظ على البيئة.", "العدوة مركز تابع لمحافظة المنيا.", "أرسل محمد علي بعثات علمية إلى فرنسا، وكان رفاعة الطهطاوي إمامًا لإحداها.", "أنشأ محمد علي الأسطول المصري في الإسكندرية في القرن التاسع عشر.", "سمالوط مركز تابع لمحافظة المنيا.", "الميركوسور سوق مشتركة لدول أمريكا الجنوبية، أما الكوميسا فتكتل أفريقي.", "الصين أكبر منتج للحديد والصلب في العالم.", "قُصفت مدرسة بحر البقر في 8 أبريل 1970 خلال حرب الاستنزاف.", "الصفر لا معكوس ضربي له لأن القسمة على صفر غير معرّفة.", "دودة الأرض من اللافقاريات، جسمها رخو بلا هيكل صلب.", "استعان محمد علي بالكولونيل سيف (سليمان باشا الفرنساوي) لتدريب جيشه الحديث.", "يُنتج الهيدروجين الأخضر بتحليل الماء كهربائيًا بكهرباء من مصادر متجددة، فلا ينتج عنه كربون.", "تركز الاستراتيجية على مواجهة آثار تغير المناخ وتحقيق نمو اقتصادي مستدام منخفض الانبعاثات.", "شرم الشيخ مدينة سياحية تتبع محافظة جنوب سيناء.", "واحة سيوة تتبع محافظة مطروح.", "جبل كاترين أعلى قمم مصر (نحو 2629 م) ويقع في جنوب سيناء.", "يقع السد العالي جنوب مدينة أسوان على نهر النيل.", "الخارجة عاصمة محافظة الوادي الجديد.", "الغردقة مدينة ساحلية على البحر الأحمر.", "أسس محمد علي الأسرة العلوية التي حكمت مصر حتى عام 1952.", "افتُتحت قناة السويس في نوفمبر 1869 في عهد الخديوي إسماعيل.", "أسس طلعت حرب بنك مصر عام 1920.", "لُقّب أحمد شوقي بأمير الشعراء عام 1927.", "فاز نجيب محفوظ بجائزة نوبل في الأدب عام 1988.", "عمّان هي عاصمة الأردن.", "الرباط هي عاصمة المغرب.", "الخرطوم هي عاصمة السودان.", "المشتري أكبر كواكب المجموعة الشمسية.", "رمز الذهب Au من اسمه اللاتيني Aurum.", "يتكوّن فيتامين د في الجلد بالتعرض لأشعة الشمس، لذلك يُسمى فيتامين الشمس."], ["للاستراتيجية الوطنية لحقوق الإنسان أربعة محاور رئيسية.", "أُعلن عام 2017 عامًا للمرأة المصرية.", "تتبع مدينة الجلالة محافظة السويس وليست الإسماعيلية.", "أبو صوير مدينة تتبع محافظة الإسماعيلية.", "يقع كوبري جرجا العلوي في محافظة سوهاج.", "كوبري «تحيا مصر» في محور روض الفرج بالقاهرة هو أعرض جسر معلق بالكابلات في العالم.", "«حياة كريمة» مبادرة رئاسية لتطوير الريف المصري وتحسين حياة سكانه.", "مبادرة «100 مليون صحة» تهدف إلى القضاء على فيروس سي والكشف عن الأمراض غير السارية.", "أُقيم الحفل الرسمي في 1 نوفمبر 2025، وفُتح المتحف للجمهور كاملًا في 4 نوفمبر 2025.", "تعكس مراسم الضبعة الشراكة الاستراتيجية بين مصر وروسيا في الاستخدام السلمي للطاقة النووية.", "تتبع اللجنة رئيس مجلس الوزراء وفق قانون لجوء الأجانب رقم 164 لسنة 2024.", "من أهم دروس نصر أكتوبر 1973: التخطيط الجيد والاستعداد الدائم للقوات المسلحة.", "في الاتحاد الجمركي تُلغى الجمارك بين الأعضاء وتُوحَّد التعريفة تجاه الدول الخارجية.", "التضخم هو الارتفاع المستمر في المستوى العام للأسعار.", "تقع العاصمة الإدارية الجديدة شرق القاهرة.", "البرج الأيقوني في العاصمة الإدارية الجديدة هو أطول برج في أفريقيا.", "معبد الكرنك في الأقصر، وهو أكبر مجمع معابد في مصر القديمة.", "مجمع بنبان من أكبر مجمعات الطاقة الشمسية في العالم، ويقع بمحافظة أسوان.", "تضم جمهورية مصر العربية 27 محافظة.", "بدأ العبور في ظهر 6 أكتوبر 1973 (العاشر من رمضان).", "فاز أحمد زويل بنوبل في الكيمياء عام 1999 عن أبحاثه في الكيمياء الفيمتوثانية.", "أُنشئت الجامعة المصرية عام 1908 وهي جامعة القاهرة حاليًا.", "تقع بورسعيد عند المدخل الشمالي لقناة السويس على البحر المتوسط.", "طرابلس هي عاصمة ليبيا.", "بغداد هي عاصمة العراق.", "عاصمة تونس هي مدينة تونس.", "الجزائر أكبر دولة عربية مساحة (نحو 2.38 مليون كم²).", "المحيط الهادئ أكبر محيطات العالم.", "يمثل النيتروجين نحو 78% من الغلاف الجوي.", "يغلي الماء النقي عند 100 درجة مئوية عند مستوى سطح البحر."], ["التعريفة الجمركية جدول رسمي يحدد الرسوم المفروضة على السلع المستوردة والمصدّرة.", "الضريبة التي تفرضها الدولة على السلع عند عبورها الحدود الوطنية هي التعريفة الجمركية.", "يدخل الحلزون في بيات صيفي ليحمي نفسه من الحر والجفاف.", "يدخل الدب في بيات شتوي ويعيش خلاله على الدهون المخزنة في جسمه.", "أمّم جمال عبد الناصر قناة السويس في 26 يوليو 1956.", "السد العالي من أبرز المشروعات القومية في عهد عبد الناصر.", "تونة الجبل منطقة أثرية بمحافظة المنيا.", "تهدف الاستراتيجية إلى تمكين المرأة سياسيًا واقتصاديًا واجتماعيًا وحمايتها.", "للمتحف المصري الكبير 12 قاعة عرض رئيسية.", "وفق الملف المرجعي، يضم المتحف آثار العصور المصرية القديمة ولا يشمل العصر الإسلامي.", "أُطلقت الاستراتيجية الوطنية للملكية الفكرية عام 2022.", "الكوميسا أكبر تكتل اقتصادي في أفريقيا، ويضم دول شرق وجنوب القارة.", "انضمت مصر إلى تجمع الكوميسا عام 1998.", "تولى المستشار عدلي منصور الرئاسة المؤقتة في يوليو 2013 بصفته رئيس المحكمة الدستورية العليا.", "تشتهر المحلة الكبرى بصناعة الغزل والنسيج.", "تشتهر دمياط بصناعة الأثاث.", "بحيرة قارون في محافظة الفيوم.", "الضبعة بمحافظة مطروح هي موقع أول محطة نووية مصرية.", "بنى جوهر الصقلي مدينة القاهرة عام 969م للخليفة الفاطمي المعز لدين الله.", "بُني الجامع الأزهر في العصر الفاطمي (عام 972م).", "عيد تحرير سيناء في 25 أبريل من كل عام (1982).", "عيد الشرطة في 25 يناير تخليدًا لمعركة الإسماعيلية عام 1952.", "نال محمد البرادعي جائزة نوبل للسلام عام 2005 مع الوكالة الدولية للطاقة الذرية.", "أبو ظبي هي عاصمة الإمارات العربية المتحدة.", "الدوحة هي عاصمة قطر.", "تأسست جامعة الدول العربية في 22 مارس 1945.", "الصحراء الكبرى أكبر صحراء حارة في العالم (نحو 9 ملايين كم²).", "جبل إيفرست أعلى قمة في العالم (نحو 8849 م).", "النيوتن هو وحدة قياس القوة في النظام الدولي.", "الفهد أسرع حيوان بري، وتصل سرعته إلى نحو 110 كم/س."], ["أُطلقت «رؤية مصر 2030» في فبراير 2016.", "جامعة الملك سلمان الدولية بجنوب سيناء من المشروعات المرتبطة بالملك سلمان في مصر.", "البرازيل أكبر دول قارة أمريكا الجنوبية.", "الحضارة الهلينستية مزيج من الثقافتين المصرية واليونانية بعد فتوحات الإسكندر.", "دول أفريقيا مستقلة، وتحدياتها الحقيقية الفقر والنزاعات وضعف البنية التحتية والديون.", "الإستروجين هو الهرمون الأنثوي الرئيسي.", "عُقد المؤتمر الوطني الأول للشباب في شرم الشيخ في أكتوبر 2016.", "يُحتفل باليوم العالمي لمكافحة الفساد في 9 ديسمبر من كل عام.", "يتكون الهيكل العظمي للإنسان البالغ من 206 عظمات.", "اندلع حريق القاهرة في 26 يناير 1952.", "تقع قلعة صلاح الدين فوق جبل المقطم بالقاهرة.", "يقع دير سانت كاترين في جنوب سيناء عند سفح جبل موسى.", "«جمعية اليد السوداء» من التنظيمات السرية التي ظهرت في ثورة 1919.", "تمتد جبال الأبلاش في شرق أمريكا الشمالية.", "الغردقة هي عاصمة محافظة البحر الأحمر.", "العريش هي عاصمة محافظة شمال سيناء.", "علم مصر ثلاثة ألوان: الأحمر والأبيض والأسود، وبمنتصفه نسر صلاح الدين.", "الجنيه المصري يتكون من 100 قرش.", "اليوم العالمي للمرأة في 8 مارس.", "اليوم العالمي للمعلم في 5 أكتوبر.", "اليوم العالمي للغة العربية في 18 ديسمبر.", "اليوم العالمي للبيئة في 5 يونيو.", "مقر الأمم المتحدة في مدينة نيويورك.", "مقر منظمة اليونسكو في باريس.", "طوكيو هي عاصمة اليابان.", "عاصمة أستراليا هي كانبرا وليست سيدني.", "أوتاوا هي عاصمة كندا.", "قارات العالم سبع.", "ألوان الطيف سبعة، من الأحمر إلى البنفسجي.", "القلب هو العضو المسؤول عن ضخ الدم إلى أجزاء الجسم."], ["تقع مصانع الرمال السوداء في البرلس بمحافظة كفر الشيخ.", "افتُتحت قناة السويس الجديدة رسميًا في أغسطس 2015.", "الري بالتنقيط يوصل الماء إلى جذور النبات مباشرة فيقلل الفاقد.", "لُقّب أرسطو بـ «أبو السياسة».", "يُلقب ماكيافيلي صاحب كتاب «الأمير» بـ «أبو السياسة الحديثة».", "لُقّب محمد شريف باشا بـ «أبو الدستور المصري».", "دشنا مركز تابع لمحافظة قنا.", "أُنشئ المجلس الوطني للهيدروجين الأخضر عام 2022.", "الاسم الصحيح هو «رؤية مصر 2030» وليس 2026.", "أُعلنت الاستراتيجية الوطنية للهيدروجين الأخضر رسميًا عام 2024.", "تبلغ مساحة المتحف المصري الكبير نحو 495 ألف متر مربع.", "أُطلقت مبادرة الهيدروجين الأخضر عام 2022.", "أول مطبعة في مصر هي مطبعة بولاق في القاهرة، وأنشأها محمد علي.", "تقع الأهرامات الثلاثة الشهيرة في محافظة الجيزة.", "يقع وادي الملوك في البر الغربي بمدينة الأقصر.", "يقع معبد فيلة في محافظة أسوان.", "الهرم الأكبر هو العجيبة الوحيدة الباقية من عجائب الدنيا السبع القديمة.", "كانت منارة الإسكندرية (فاروس) من عجائب الدنيا السبع القديمة، وانهارت بسبب الزلازل.", "تُلقَّب الإسكندرية بعروس البحر المتوسط.", "تُلقَّب القاهرة بمدينة الألف مئذنة.", "القمح من أهم محاصيل الحبوب الشتوية في مصر.", "يُلقب الجمل بسفينة الصحراء لقدرته على تحمل العطش والحر.", "برازيليا هي عاصمة البرازيل، وليست ريو دي جانيرو.", "يجري نهرا دجلة والفرات في العراق.", "الحوت الأزرق أكبر حيوان على وجه الأرض.", "اليوم العالمي للمياه في 22 مارس.", "الأمبير وحدة قياس شدة التيار الكهربائي.", "الألماس أصلب مادة طبيعية معروفة.", "المريخ هو الكوكب الأحمر بسبب أكسيد الحديد على سطحه.", "السنة الكبيسة 366 يومًا بإضافة يوم 29 فبراير."]];
+/*ENDDATA*/
+</script>
+
+<script>
+(function(){
+var LET=["أ","ب","ج","د"];
+var NAMES=["الأول","الثاني","الثالث","الرابع","الخامس","السادس"];
+var TOTAL_MS=5*60*1000;
+var st=null,timerId=null,filter="all";
+function $(id){return document.getElementById(id)}
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
+function bestGet(){try{return JSON.parse(localStorage.getItem("bsata_best")||"{}")}catch(e){return {}}}
+function bestSet(m,s){try{var b=bestGet();if(b[m]==null||s>b[m]){b[m]=s;localStorage.setItem("bsata_best",JSON.stringify(b))}}catch(e){}}
+function wm(){var s="";for(var i=0;i<15;i++)s+="<span>ببساطة</span>";return '<div class="wm" aria-hidden="true">'+s+'</div>'}
+function show(id){["home","exam","result"].forEach(function(k){$(k).hidden=(k!==id)});window.scrollTo(0,0)}
+function mmss(ms){var s=Math.ceil(ms/1000);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")}
+
+/* ---------- home ---------- */
+function renderTiles(){
+  var b=bestGet(),h="";
+  MODELS.forEach(function(m,i){
+    h+='<button class="tile" type="button" data-m="'+i+'"><span class="num">'+(i+1)+'</span><span class="tn">النموذج '+NAMES[i]+'</span><span class="tm">'+m.length+' سؤالًا · 5 دقائق</span><span class="best">'+(b[i]!=null?'أفضل نتيجة: '+b[i]+' / '+m.length:'')+'</span><span class="go">ابدأ الاختبار</span></button>';
+  });
+  $("tiles").innerHTML=h;
+}
+$("tiles").addEventListener("click",function(e){var t=e.target.closest(".tile");if(t)start(+t.getAttribute("data-m"))});
+
+/* ---------- exam ---------- */
+function start(m){
+  var items=MODELS[m].map(function(r,j){
+    return {q:r[0],note:(EXPL[m]&&EXPL[m][j])||r[3]||"",opts:shuffle(r[1].map(function(t,k){return k===0?{t:t,ok:true}:{t:t}}))};
+  });
+  var now=Date.now();
+  st={instant:$("instantToggle").checked,id:now,m:m,items:items,ans:items.map(function(){return -1}),cur:0,start:now,end:now+TOTAL_MS,done:false};
+  clearInterval(timerId);timerId=setInterval(tick,250);
+  $("examTitle").textContent="النموذج "+NAMES[m];
+  var g="";for(var i=0;i<items.length;i++)g+='<button class="chip" type="button" data-n="'+i+'" aria-label="السؤال '+(i+1)+'">'+(i+1)+'</button>';
+  $("navgrid").innerHTML=g;
+  try{localStorage.setItem("bsata_instant",st.instant?"1":"0")}catch(e){}
+  $("autoLbl").hidden=st.instant;
+  show("exam");renderQ();tick();
+}
+function tick(){
+  if(!st||st.done)return;
+  var left=Math.max(0,st.end-Date.now());
+  $("timer").textContent=mmss(left);
+  $("tfill").style.width=(left/TOTAL_MS*100)+"%";
+  var w=left<=60000;
+  $("timerBox").classList.toggle("warn",w);$("xbar").classList.toggle("warn",w);
+  if(left<=0)finish(true);
+}
+function renderQ(){
+  var n=st.cur,it=st.items[n],h="";
+  var a=st.ans[n],lock=st.instant&&a>=0;
+  it.opts.forEach(function(o,i){
+    var cls="opt",mk="";
+    if(lock){cls+=" lock";if(o.ok){cls+=" ok";mk='<span class="mk">الصحيحة</span>'}else if(i===a){cls+=" no";mk='<span class="mk">إجابتك</span>'}}
+    h+='<button class="'+cls+'" type="button" data-i="'+i+'" aria-pressed="'+(a===i)+'"><span class="let">'+LET[i]+'</span><span class="ot">'+o.t+'</span>'+mk+'</button>';
+  });
+  var ex="";
+  if(lock){
+    var good=it.opts[a].ok,right="";
+    it.opts.forEach(function(o){if(o.ok)right=o.t});
+    ex='<div class="expl '+(good?'ok':'no')+'" role="status"><b>'+(good?'إجابة صحيحة':'إجابة خاطئة')+'</b><p>'+(good?'':'الإجابة الصحيحة: '+right+'. ')+it.note+'</p></div>';
+  }
+  $("qcard").innerHTML=wm()+'<div class="in"><span class="qno">سؤال '+(n+1)+' من '+st.items.length+'</span><h2 class="qt">'+it.q+'</h2><div class="opts">'+h+'</div>'+ex+'</div>';
+  $("prev").disabled=(n===0);$("next").disabled=(n===st.items.length-1);
+  updateNav();
+}
+function updateNav(){
+  var c=$("navgrid").children;
+  for(var i=0;i<c.length;i++){var ans=st.ans[i]>=0,ok=ans&&st.items[i].opts[st.ans[i]].ok;
+    c[i].classList.toggle("done",ans&&i!==st.cur&&!st.instant);
+    c[i].classList.toggle("ok",st.instant&&ans&&ok);c[i].classList.toggle("bad",st.instant&&ans&&!ok);
+    c[i].classList.toggle("cur",i===st.cur)}
+}
+function go(n){if(!st||st.done)return;if(n<0||n>=st.items.length)return;st.cur=n;renderQ()}
+function pick(i){
+  if(!st||st.done)return;
+  if(st.instant&&st.ans[st.cur]>=0)return;
+  st.ans[st.cur]=i;renderQ();
+  if(st.instant){var ex=document.querySelector(".expl");if(ex&&ex.scrollIntoView)ex.scrollIntoView({block:"nearest",behavior:"smooth"});return}
+  if($("autoToggle").checked&&st.cur<st.items.length-1){
+    var at=st.cur,id=st.id;
+    setTimeout(function(){if(st&&st.id===id&&!st.done&&st.cur===at)go(at+1)},280);
+  }
+}
+$("qcard").addEventListener("click",function(e){var o=e.target.closest(".opt");if(o)pick(+o.getAttribute("data-i"))});
+$("navgrid").addEventListener("click",function(e){var c=e.target.closest(".chip");if(c)go(+c.getAttribute("data-n"))});
+$("prev").addEventListener("click",function(){go(st.cur-1)});
+$("next").addEventListener("click",function(){go(st.cur+1)});
+document.addEventListener("keydown",function(e){
+  if(!st||st.done||$("exam").hidden||!$("modal").hidden)return;
+  if(e.key>="1"&&e.key<="4"){pick(+e.key-1)}
+  else if(e.key==="ArrowLeft"){go(st.cur+1)}
+  else if(e.key==="ArrowRight"){go(st.cur-1)}
+});
+
+/* ---------- finish ---------- */
+$("finishBtn").addEventListener("click",function(){
+  var un=st.ans.filter(function(a){return a<0}).length;
+  $("mMsg").textContent=un>0?"لم تجب عن "+un+" سؤالًا بعد. بعد الإنهاء لن تتمكن من تعديل إجاباتك.":"أجبت عن كل الأسئلة. بعد الإنهاء لن تتمكن من تعديل إجاباتك.";
+  $("modal").hidden=false;
+});
+$("mBack").addEventListener("click",function(){$("modal").hidden=true});
+$("mOk").addEventListener("click",function(){finish(false)});
+function finish(timeout){
+  if(!st||st.done)return;
+  st.done=true;clearInterval(timerId);$("modal").hidden=true;
+  var ok=0,bad=0,skip=0;
+  st.items.forEach(function(it,i){var a=st.ans[i];if(a<0)skip++;else if(it.opts[a].ok)ok++;else bad++});
+  st.res={ok:ok,bad:bad,skip:skip,used:Math.min(TOTAL_MS,Date.now()-st.start),timeout:timeout};
+  bestSet(st.m,ok);renderTiles();renderResult();show("result");
+}
+
+/* ---------- result ---------- */
+function rating(p){
+  if(p>=90)return["ممتاز","أداء رائع. حافظ على هذا المستوى وجرّب النماذج الأخرى."];
+  if(p>=75)return["جيد جدًا","مستوى قوي. راجع الأسئلة الخاطئة لتثبيت النقاط المتبقية."];
+  if(p>=60)return["جيد","مستوى جيد. راجع الأسئلة الخاطئة وأعد المحاولة لتحسين النتيجة."];
+  if(p>=50)return["مقبول","تحتاج إلى مزيد من المراجعة. ابدأ بمراجعة الإجابات أدناه."];
+  return["يحتاج إلى مراجعة","لا تقلق. راجع الإجابات الصحيحة أدناه ثم أعد النموذج."];
+}
+function renderResult(){
+  var r=st.res,total=st.items.length,p=Math.round(r.ok/total*100),rt=rating(p);
+  $("resTitle").textContent="النموذج "+NAMES[st.m]+(r.timeout?" · انتهى الوقت":"");
+  $("resScore").textContent=r.ok;$("resTotal").textContent=total;
+  $("resRate").textContent=rt[0]+" · "+p+"%";
+  $("resNote").textContent=rt[1];
+  $("resStats").innerHTML='<div class="stat g"><b>'+r.ok+'</b><span>إجابات صحيحة</span></div><div class="stat r"><b>'+r.bad+'</b><span>إجابات خاطئة</span></div><div class="stat y"><b>'+r.skip+'</b><span>بدون إجابة</span></div><div class="stat"><b>'+mmss(r.used)+'</b><span>الزمن المستغرق</span></div>';
+  filter="all";renderReview();
+}
+function renderReview(){
+  var h="";
+  st.items.forEach(function(it,i){
+    var a=st.ans[i],state=a<0?"skip":(it.opts[a].ok?"ok":"bad");
+    if(filter==="bad"&&state!=="bad")return;
+    if(filter==="skip"&&state!=="skip")return;
+    var o="";
+    it.opts.forEach(function(op,k){
+      var cls="ro",tag="";
+      if(op.ok){cls+=" right";tag='<span class="tag g">الإجابة الصحيحة</span>'}
+      else if(k===a){cls+=" wrong";tag='<span class="tag r">إجابتك</span>'}
+      o+='<div class="'+cls+'"><span class="rt">'+LET[k]+') '+op.t+'</span>'+tag+'</div>';
+    });
+    h+='<article class="slab rev '+state+'">'+wm()+'<div class="in"><div class="rq"><span class="rn">'+(i+1)+'</span><span>'+it.q+'</span></div><div class="ros">'+o+'</div>'+(it.note?'<p class="exp"><b>الشرح: </b>'+it.note+'</p>':'')+'</div></article>';
+  });
+  $("review").innerHTML=h||'<div class="slab rev"><div class="in">لا توجد أسئلة في هذا التصنيف.</div></div>';
+  var f=$("filters").children;
+  for(var i=0;i<f.length;i++){f[i].setAttribute("aria-pressed",f[i].getAttribute("data-f")===filter)}
+}
+$("filters").addEventListener("click",function(e){var b=e.target.closest("button");if(b){filter=b.getAttribute("data-f");renderReview()}});
+$("retry").addEventListener("click",function(){start(st.m)});
+$("toHome").addEventListener("click",function(){st=null;show("home")});
+
+/* ---------- misc ---------- */
+$("cpBtn").addEventListener("click",function(){
+  var btn=this,ok=function(){btn.textContent="تم النسخ";setTimeout(function(){btn.textContent="نسخ الرقم"},1600)};
+  try{navigator.clipboard.writeText("01505191893").then(ok,function(){})}catch(e){}
+});
+try{if(localStorage.getItem("bsata_instant")==="0")$("instantToggle").checked=false}catch(e){}
+renderTiles();
+})();
+</script>
+
+</body>
+</html>
